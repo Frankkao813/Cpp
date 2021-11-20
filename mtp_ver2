@@ -1,0 +1,263 @@
+// real mtp input
+
+#include<iostream>
+#include<cmath>
+using namespace std;
+struct Point{
+	int x;
+	int y;
+};
+// input the required information
+void inputData(Point* logistics, Point* store, int* demand, int* store_cost, int* store_prod_price, 
+				int* logis_cost, int* logis_capacity, int num_logis, int num_store);
+				
+void assignLogistics(Point* logistics, Point* store, int* store_prod_price, int** store_logis_pair, 
+				int* store_logis_fit_count, int** store_logis_raw_profit, int num_logis, int num_store, int unit_km_cost);
+int manhattan_dist(Point logistics, Point store);
+int raw_profit(int man_dist, int prod_price, int unit_km_cost);
+void arrangeLogisStorePair(int* raw_profit_array, int* probable_logis_store, int num_logis);
+void copyStoreLogisPair(int** store_logis_pair, int* probable_logis_store, int** store_logis_raw_profit, int* raw_profit_array, int logis_num, int store_num);
+
+/*
+store the net profit ((p - c*d_ij)*x_i - store_cost[i]) when each store is paired with specific logistic center
+19 4   0 1
+23 3   0 1
+20 15  1 0
+39 21  0 1
+18 11  0 1
+29 5   1 0 
+*/
+
+void profitStore(int** store_logis_net_profit, int** store_logis_raw_profit, int* demand, int* store_cost, int num_store, int num_logis);
+
+/* compare the net profit and the store logis pair, if the net profit at that element is <= 0, then we have to alter 
+the store logis pair element to -1
+*/
+void alterStoreLogisPair(int** store_logis_pair, int** store_logis_net_profit, int num_store, int num_logis);
+
+				
+int main(){
+	int num_logis = 0;
+	int num_store = 0;
+	int unit_km_cost = 0;
+	int mode_logis = 0;
+	
+	cin >> num_logis >> num_store >> unit_km_cost >> mode_logis;
+	Point* logistics = new Point[num_logis];
+	Point* store = new Point[num_store];
+	int* demand  = new int[num_store];
+	int* store_cost = new int[num_store];
+	int* store_prod_price = new int[num_store];
+	int* logis_cost = new int[num_logis];
+	int* logis_capacity = new int[num_logis];
+	
+	inputData(logistics, store, demand, store_cost, store_prod_price, logis_cost, logis_capacity, num_logis, num_store);
+	
+	int** store_logis_pair = new int*[num_store];
+	int* store_logis_fit_count = new int[num_store];
+	int** store_logis_raw_profit = new int*[num_store]; 
+	int** store_logis_net_profit = new int*[num_store];
+	assignLogistics(logistics, store, store_prod_price, store_logis_pair, store_logis_fit_count, store_logis_raw_profit, num_logis, num_store, unit_km_cost);
+	profitStore(store_logis_net_profit, store_logis_raw_profit, demand, store_cost, num_store, num_logis);
+	alterStoreLogisPair(store_logis_pair, store_logis_net_profit, num_store, num_logis);
+
+
+//// check output
+	for(int i = 0; i < num_store; i++){
+		for(int j = 0; j < num_logis; j++)
+			cout << store_logis_pair[i][j] << " ";
+		cout << "\n";
+	}
+	
+	cout << "................................" << endl;
+	for(int i = 0; i < num_store; i++){
+		for(int j = 0; j < num_logis; j++)
+			cout << store_logis_raw_profit[i][j] << " ";
+		cout << "\n";
+	}
+	cout << "........................." << endl;
+	
+	for(int i = 0; i < num_store; i++){
+		for(int j = 0; j < num_logis; j++)
+			cout << store_logis_net_profit[i][j] << " ";
+		cout << "\n";
+	}
+//		
+//		
+	return 0;
+}
+
+void inputData(Point* logistics, Point* store, int* demand, int* store_cost, int* store_prod_price, 
+				int* logis_cost, int* logis_capacity, int num_logis, int num_store){
+					
+	for(int i = 0; i < num_logis; i++)
+		cin >> logistics[i].x >> logistics[i].y;
+	
+	for(int i = 0; i < num_store; i++)
+		cin >> store[i].x >> store[i].y;
+	
+	for(int i = 0; i < num_store; i++)
+		cin >> demand[i];
+		
+	for(int i = 0; i < num_store; i++)
+		cin >> store_cost[i];
+	
+	for(int i = 0; i < num_store; i++)
+		cin >> store_prod_price[i];
+	
+	for(int i = 0; i < num_logis; i++)
+		cin >> logis_cost[i];
+	
+	for(int i = 0; i < num_logis; i++)
+		cin >> logis_capacity[i];
+		 				
+	return;
+	
+}
+void assignLogistics(Point* logistics, Point* store, int* store_prod_price, int** store_logis_pair,
+					int* store_logis_fit_count, int** store_logis_raw_profit, int num_logis, int num_store, int unit_km_cost){
+	
+	// initialize store_logis_pair
+	for(int i = 0; i < num_store; i++){
+		store_logis_pair[i] = new int[num_logis];	
+		store_logis_raw_profit[i] = new int[num_logis];
+	}
+		
+	
+	for(int i = 0; i < num_store; i++)
+		for(int j = 0; j < num_logis; j++){
+			store_logis_pair[i][j] = -1;
+			store_logis_raw_profit[i][j] = -1;
+		} 
+	
+	// start to assign Logistics
+	for(int i = 0; i < num_store; i++){
+		int fit_num = 0;
+		int curr_raw_profit = 0;
+		int curr_man_dist = 0;
+		int* raw_profit_array = new int[num_logis]; // storing the stores' raw peofit
+		int* probable_logis_store = new int[num_logis];  // storing the probable logis store;
+		for(int j = 0; j < num_logis; j++){
+			curr_man_dist = manhattan_dist(logistics[j], store[i]);
+			cout << "curr_man_dist " << curr_man_dist << " store_prod_price " << store_prod_price[i] << " unit km cost " << unit_km_cost << endl;
+			raw_profit_array[j] = raw_profit(curr_man_dist, store_prod_price[i], unit_km_cost);
+			probable_logis_store[j] = j;
+			cout << "the current manhattan dist for store " << i << " paired with logistics "  << j << " will be " << curr_man_dist << endl;
+			cout << "the raw profit for store " << i << " paired with logistics "  << j << " will be " << raw_profit_array[j] << endl;
+			if(raw_profit_array[j] > 0)
+				fit_num += 1;
+		}
+		cout << " the fit num will be " << fit_num << endl; 
+		arrangeLogisStorePair(raw_profit_array, probable_logis_store, num_logis); // the probable logis store will be sorted
+		copyStoreLogisPair(store_logis_pair, probable_logis_store, store_logis_raw_profit, raw_profit_array, num_logis, i);
+		
+		// free the allocated memory
+		delete[] raw_profit_array;
+		delete[] probable_logis_store;	
+		cout << endl;
+	}
+		
+	return;
+} 
+
+int manhattan_dist(Point logistics, Point store){
+	return abs(logistics.x - store.x) + abs(logistics.y - store.y);
+}
+
+int raw_profit(int man_dist, int prod_price, int unit_km_cost){
+	// calculate whether (p - c * d_ij) > 0
+	//excluding the term x_ij
+	int profit = prod_price - unit_km_cost * man_dist;	
+	
+	return profit;
+		
+}
+
+void arrangeLogisStorePair(int* raw_profit_array, int* probable_logis_store, int num_logis){
+	
+	// for check purpose
+	cout << "for check purpose " << " ";
+	for(int i = 0; i < num_logis; i++)
+		cout << probable_logis_store[i] << " ";
+	for(int i = 0; i < num_logis; i++)
+		cout << raw_profit_array[i] << " ";
+	
+	cout << "\n";
+	
+	// implement bubblesort
+	for(int i = num_logis - 1; i >= 0; i--)
+		for(int j = 0; j <= i - 1; j++){
+			if(raw_profit_array[j] > raw_profit_array[j + 1]){
+				// swap
+				int tmp = raw_profit_array[j + 1];
+				int tmp_2 = probable_logis_store[j + 1];
+				cout << " tmp " << tmp << " tmp2 " << endl; 
+				
+				raw_profit_array[j + 1] = raw_profit_array[j];
+				probable_logis_store[j + 1] = probable_logis_store[j];
+				cout << " raw_profit_array[j + 1] " << raw_profit_array[j + 1] << " " << "probable_logis_store[j + 1] " << probable_logis_store[j + 1] << endl;
+				raw_profit_array[j] = tmp;
+				probable_logis_store[j] = tmp_2;
+				cout << " raw_profit_array[j] " << 	raw_profit_array[j] << " probable_logis_store[j]  " <<probable_logis_store[j] <<endl ;
+			}
+		} // OK
+	
+	// reverse
+	int* reversed_raw_profit = new int[num_logis];
+	int* reversed_probable_logis_store = new int[num_logis];
+	
+	for(int i = 0; i < num_logis; i++){
+		reversed_raw_profit[i] = raw_profit_array[(num_logis - 1) - i] ;
+		reversed_probable_logis_store[i] = probable_logis_store[(num_logis - 1) - i];
+	}
+	
+	// copy back
+	for(int i = 0; i < num_logis; i++){
+		raw_profit_array[i] = reversed_raw_profit[i];
+		probable_logis_store[i] = reversed_probable_logis_store[i];
+	}
+	cout <<" the probable logis store " << "\n";
+	for(int i = 0; i < num_logis; i++)
+		cout << probable_logis_store[i] << " ";
+	cout << "the probable raw_profit " << "\n";
+	for(int i = 0; i < num_logis; i++)
+		cout << raw_profit_array[i] << " ";
+	cout << endl;
+	
+		
+	// delete statement
+	delete[] reversed_raw_profit;
+	delete[] reversed_probable_logis_store;
+}
+
+// num_logis corresponds to number of logistics
+void copyStoreLogisPair(int** store_logis_pair, int* probable_logis_store, int** store_logis_raw_profit, int* raw_profit_array, int logis_num, int store_num){
+	for(int i = 0; i < logis_num; i++){
+		store_logis_pair[store_num][i] = probable_logis_store[i];
+		store_logis_raw_profit[store_num][i] = raw_profit_array[i];
+		
+		//cout << probable_logis_store[i] << " ";
+	} 
+	cout << endl;
+}
+void profitStore(int** store_logis_net_profit, int** store_logis_raw_profit, int* demand, int* store_cost, int num_store, int num_logis){
+	// initializa store_logis_net_profit
+	for(int i = 0; i < num_store; i++)
+		//for(int j = 0; j < num_logis; j++)
+		store_logis_net_profit[i] = new int[num_logis];
+		
+	for(int i = 0; i < num_store; i++)
+		for(int j = 0; j < num_logis; j++)
+			store_logis_net_profit[i][j] = store_logis_raw_profit[i][j] * demand[i] - store_cost[i];
+		
+}
+
+void alterStoreLogisPair(int** store_logis_pair, int** store_logis_net_profit, int num_store, int num_logis){
+	for(int i = 0; i < num_store; i++)
+		for(int j = 0; j < num_logis; j++)
+			if(store_logis_net_profit[i][j] <= 0)
+				// The store can't be built, for it will cause 0 or negative profit.
+				store_logis_pair[i][j] = -1; 
+	
+	return;
+}
