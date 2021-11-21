@@ -41,6 +41,8 @@ int* logis_capacity, int* demand, int* final_decision, int num_store, int num_lo
 void iniConstructArr(int** replenish_plan, bool* construct_logis, bool* construct_store, int num_store, int num_logis);
 void constructLogis(bool* construct_logis, int index);
 void constructStore(bool* construct_store, int index);
+void printOutput(int construct_logis_cnt, bool* construct_logis, int construct_store_cnt, bool* construct_store, 
+int** replenish_plan, int num_logis, int num_store);
 
 void alterReplenishPlan(int** replenish_plan, int store_index, int logis_index, int* demand);
 
@@ -68,7 +70,18 @@ int main(){
 	assignLogistics(logistics, store, store_prod_price, store_logis_pair, store_logis_fit_count, store_logis_raw_profit, num_logis, num_store, unit_km_cost);
 	profitStore(store_logis_net_profit, store_logis_raw_profit, demand, store_cost, num_store, num_logis);
 	alterStoreLogisPair(store_logis_pair, store_logis_net_profit, num_store, num_logis);
+	// cout
+	for(int i = 0; i < num_store; i++){
+		for(int j = 0; j < num_logis; j++)
+			cout << store_logis_net_profit[i][j] << " ";
+		cout << "\n";	
+	}
 	
+	for(int i = 0; i < num_store; i++){
+		for(int j = 0; j < num_logis; j++)
+			cout << store_logis_pair[i][j] << " ";
+		cout << "\n";	
+	}
 	// calculate what store has been chosen, and then sort
 	int* logis_chosen_cnt = new int[num_logis];
 	int* logis_index = new int[num_logis]; // store the logis to be processed first...
@@ -81,19 +94,12 @@ int main(){
 	bool* construct_logis = new bool[num_logis];
 	bool* construct_store = new bool[num_store];
 	int** replenish_plan = new int*[num_store];
-	//logisStoreChoose(store_logis_pair, store_logis_net_profit, 1, logis_cost, logis_capacity, demand,
-//final_decision, num_store, num_logis);
-
-
+	
 	iniConstructArr(replenish_plan, construct_logis, construct_store, num_store, num_logis);
 	for(int i = 0; i < num_logis; i++){
 		int curr_logis_index = logis_index[i];
 		logisStoreChoose(store_logis_pair, store_logis_net_profit, curr_logis_index, logis_cost, logis_capacity, demand, final_decision, num_store, num_logis);
-		cout << "final decision" << endl;
-		for(int i = 0; i < num_store; i++)
-			cout << final_decision[i];
-		cout << endl;
-		
+
 		if(final_decision[0] != -1){
 			construct_logis_cnt += 1;
 			// set the store to be constructed! // a function
@@ -110,43 +116,9 @@ int main(){
 		}	
 	}
 	
-	cout << "!!!!!!!!!!!2@@@@@@@@@@@" << endl;
-	for(int i = 0; i < 6; i++)
-		cout << construct_store[i] << " ";
-	cout << endl; 
-
-//// check output
-	cout << logis_chosen_cnt[0] << " " << logis_chosen_cnt[1] << "............"<< endl; 
-	cout << logis_index[0] << " " << logis_index[1] << " !!!!!!!!!!!!!1" << endl; 
-	for(int i = 0; i < num_store; i++){
-		for(int j = 0; j < num_logis; j++)
-			cout << store_logis_pair[i][j] << " ";
-		cout << "\n";
-	}
+	printOutput(construct_logis_cnt, construct_logis, construct_store_cnt, construct_store, 
+	replenish_plan, num_logis, num_store);
 	
-	cout << "................................" << endl;
-	for(int i = 0; i < num_store; i++){
-		for(int j = 0; j < num_logis; j++)
-			cout << store_logis_raw_profit[i][j] << " ";
-		cout << "\n";
-	}
-	cout << "........................." << endl;
-	
-	for(int i = 0; i < num_store; i++){
-		for(int j = 0; j < num_logis; j++)
-			cout << store_logis_net_profit[i][j] << " ";
-		cout << "\n";
-	}
-//		
-//		
-
-	cout << "\n" << "\n";
-	for(int i = 0; i < num_store; i++){
-		for(int j = 0; j < num_logis; j++)
-			cout << replenish_plan[i][j] << " ";
-		cout << "\n";	
-	}
-		
 	return 0;
 }
 
@@ -202,22 +174,22 @@ void assignLogistics(Point* logistics, Point* store, int* store_prod_price, int*
 		int* probable_logis_store = new int[num_logis];  // storing the probable logis store;
 		for(int j = 0; j < num_logis; j++){
 			curr_man_dist = manhattan_dist(logistics[j], store[i]);
-			cout << "curr_man_dist " << curr_man_dist << " store_prod_price " << store_prod_price[i] << " unit km cost " << unit_km_cost << endl;
+			//cout << "curr_man_dist " << curr_man_dist << " store_prod_price " << store_prod_price[i] << " unit km cost " << unit_km_cost << endl;
 			raw_profit_array[j] = raw_profit(curr_man_dist, store_prod_price[i], unit_km_cost);
 			probable_logis_store[j] = j;
-			cout << "the current manhattan dist for store " << i << " paired with logistics "  << j << " will be " << curr_man_dist << endl;
-			cout << "the raw profit for store " << i << " paired with logistics "  << j << " will be " << raw_profit_array[j] << endl;
+			//cout << "the current manhattan dist for store " << i << " paired with logistics "  << j << " will be " << curr_man_dist << endl;
+			//cout << "the raw profit for store " << i << " paired with logistics "  << j << " will be " << raw_profit_array[j] << endl;
 			if(raw_profit_array[j] > 0)
 				fit_num += 1;
 		}
-		cout << " the fit num will be " << fit_num << endl; 
+		//cout << " the fit num will be " << fit_num << endl; 
 		arrangeLogisStorePair(raw_profit_array, probable_logis_store, num_logis); // the probable logis store will be sorted
 		copyStoreLogisPair(store_logis_pair, probable_logis_store, store_logis_raw_profit, raw_profit_array, num_logis, i);
 		
 		// free the allocated memory
 		delete[] raw_profit_array;
 		delete[] probable_logis_store;	
-		cout << endl;
+		//cout << endl;
 	}
 		
 	return;
@@ -238,16 +210,16 @@ int raw_profit(int man_dist, int prod_price, int unit_km_cost){
 
 void arrangeLogisStorePair(int* raw_profit_array, int* probable_logis_store, int num_logis){
 	
-	// for check purpose
-	cout << "\n";
-	cout << "for check purpose " << " ";
-	for(int i = 0; i < num_logis; i++)
-		cout << probable_logis_store[i] << " ";
-	for(int i = 0; i < num_logis; i++)
-		cout << raw_profit_array[i] << " ";
-	
-	cout << "\n";
-	
+//	// for check purpose
+//	cout << "\n";
+//	cout << "for check purpose " << " ";
+//	for(int i = 0; i < num_logis; i++)
+//		cout << probable_logis_store[i] << " ";
+//	for(int i = 0; i < num_logis; i++)
+//		cout << raw_profit_array[i] << " ";
+//	
+//	cout << "\n";
+//	
 	// implement bubblesort
 	for(int i = num_logis - 1; i >= 0; i--)
 		for(int j = 0; j <= i - 1; j++){
@@ -255,14 +227,14 @@ void arrangeLogisStorePair(int* raw_profit_array, int* probable_logis_store, int
 				// swap
 				int tmp = raw_profit_array[j + 1];
 				int tmp_2 = probable_logis_store[j + 1];
-				cout << " tmp " << tmp << " tmp2 " << endl; 
+				//cout << " tmp " << tmp << " tmp2 " << endl; 
 				
 				raw_profit_array[j + 1] = raw_profit_array[j];
 				probable_logis_store[j + 1] = probable_logis_store[j];
-				cout << " raw_profit_array[j + 1] " << raw_profit_array[j + 1] << " " << "probable_logis_store[j + 1] " << probable_logis_store[j + 1] << endl;
+				//cout << " raw_profit_array[j + 1] " << raw_profit_array[j + 1] << " " << "probable_logis_store[j + 1] " << probable_logis_store[j + 1] << endl;
 				raw_profit_array[j] = tmp;
 				probable_logis_store[j] = tmp_2;
-				cout << " raw_profit_array[j] " << 	raw_profit_array[j] << " probable_logis_store[j]  " <<probable_logis_store[j] <<endl ;
+				//cout << " raw_profit_array[j] " << 	raw_profit_array[j] << " probable_logis_store[j]  " <<probable_logis_store[j] <<endl ;
 			}
 		} // OK
 	
@@ -280,13 +252,13 @@ void arrangeLogisStorePair(int* raw_profit_array, int* probable_logis_store, int
 		raw_profit_array[i] = reversed_raw_profit[i];
 		probable_logis_store[i] = reversed_probable_logis_store[i];
 	}
-	cout <<" the probable logis store " << "\n";
-	for(int i = 0; i < num_logis; i++)
-		cout << probable_logis_store[i] << " ";
-	cout << "the probable raw_profit " << "\n";
-	for(int i = 0; i < num_logis; i++)
-		cout << raw_profit_array[i] << " ";
-	cout << endl;
+//	cout <<" the probable logis store " << "\n";
+//	for(int i = 0; i < num_logis; i++)
+//		cout << probable_logis_store[i] << " ";
+//	cout << "the probable raw_profit " << "\n";
+//	for(int i = 0; i < num_logis; i++)
+//		cout << raw_profit_array[i] << " ";
+//	cout << endl;
 	
 		
 	// delete statement
@@ -302,7 +274,7 @@ void copyStoreLogisPair(int** store_logis_pair, int* probable_logis_store, int**
 		
 		//cout << probable_logis_store[i] << " ";
 	} 
-	cout << endl;
+	//cout << endl;
 }
 void profitStore(int** store_logis_net_profit, int** store_logis_raw_profit, int* demand, int* store_cost, int num_store, int num_logis){
 	// initializa store_logis_net_profit
@@ -313,6 +285,7 @@ void profitStore(int** store_logis_net_profit, int** store_logis_raw_profit, int
 	for(int i = 0; i < num_store; i++)
 		for(int j = 0; j < num_logis; j++)
 			store_logis_net_profit[i][j] = store_logis_raw_profit[i][j] * demand[i] - store_cost[i];
+				
 		
 }
 
@@ -397,4 +370,50 @@ void constructStore(bool* construct_store, int index){
 }
 void alterReplenishPlan(int** replenish_plan, int store_index, int logis_index, int* demand){
 	replenish_plan[store_index][logis_index] = demand[store_index];
+}
+
+void printOutput(int construct_logis_cnt, bool* construct_logis, int construct_store_cnt, bool* construct_store, 
+int** replenish_plan, int num_logis, int num_store){
+cout << construct_logis_cnt << " ";
+	
+	// output - needs to be checked!
+	for(int i = 0; i < num_logis; i++){
+		int cnt = 0;
+		if(construct_logis[i] == true && cnt == construct_logis_cnt - 1){
+			cout << i + 1;
+			break;
+		}
+		else{
+			if(construct_logis[i] == true){
+				cout << i + 1 << " ";
+				cnt++;
+			}
+		}
+	}
+	cout << endl;
+	cout << construct_store_cnt << " ";
+	for(int i = 0; i < num_store; i++){
+		int cnt = 0;
+		if(construct_store[i] == true && cnt == construct_store_cnt - 1){
+			cout << i + 1;
+			break;
+		}
+		else{
+			if(construct_store[i] == true){
+				cout << i + 1 << " ";
+				cnt++;
+			}		
+		}
+	}
+	cout << endl;
+	for(int i = 0; i < num_store; i++){
+		for(int j = 0; j < num_logis; j++){
+			if(j == num_logis - 1) 
+				cout << replenish_plan[i][j];
+			else
+				cout << replenish_plan[i][j] << " ";
+		}
+		cout << "\n";	
+	} 
+
 }
