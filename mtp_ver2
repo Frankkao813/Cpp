@@ -1,3 +1,5 @@
+// mtp_ver5;
+
 #include<iostream>
 #include<cmath>
 using namespace std;
@@ -38,12 +40,17 @@ void copyStoreLogisPair(int** store_logis_pair, int* probable_logis_store, int**
 
 void profitStore(int** store_logis_net_profit, int** store_logis_raw_profit, Store* store_info, int store_num, int logis_num);
 void alterStoreLogisPair(int** store_logis_pair, int** store_logis_net_profit, int store_num, int logis_num);
-void logisChosenCnt(int** store_logis_pair, int* logis_index, int* logis_chosen_cnt_arr, int store_num, int logis_num);
+//void logisChosenCnt(int** store_logis_pair, int* logis_index, int* logis_chosen_cnt_arr, int store_num, int logis_num);
+void logisChosenCnt(int** store_logis_pair, int* logis_index, int* logis_chosen_cnt_arr, bool* construct_store, int store_num, 
+int logis_num, int row_num);
 void iniConstructArr(int** replenish_plan, bool* construct_logis, bool* construct_store, int store_num, int logis_num);
 //void logisStoreChoose(int** store_logis_pair, int** store_logis_net_profit, int logis_index, 
 //Logis* logis_info, Store* store_info, int* final_decision, int store_num, int logis_num);
+//void logisStoreDecide(int** store_logis_pair, int** store_logis_net_profit, int logis_index, Logis* logis_info, 
+//Store* store_info, int* final_decision, int** replenish_plan, int unit_km_cost, int store_num, int logis_num);
 void logisStoreDecide(int** store_logis_pair, int** store_logis_net_profit, int logis_index, Logis* logis_info, 
-Store* store_info, int* final_decision, int** replenish_plan, int unit_km_cost, int store_num, int logis_num);
+Store* store_info, int* final_decision, int** replenish_plan, bool* construct_logis, bool* construct_store, int unit_km_cost, int store_num, 
+int logis_num, int row_num);
 bool check_positive(int remain_goods, int store_index, int logis_index, Store* store_info, Logis* logis_info, 
 int unit_km_cost);
 void constructLogis(bool* construct_logis, int index);
@@ -51,6 +58,10 @@ void constructStore(bool* construct_store, int index);
 void alterReplenishPlan(int** replenish_plan, int store_index, int logis_index, Store* store_info);
 void printOutput(int construct_logis_cnt, bool* construct_logis, int construct_store_cnt, bool* construct_store, 
 int** replenish_plan, int logis_num, int store_num);
+
+void checkFeasibility(Store* store_info, Logis* logis_info, int construct_logis_cnt, bool construct_logis[], 
+int construct_store_cnt, bool construct_store[], int** replenish_plan, int logis_num, int store_num, int logis_mode,
+int unit_km_cost);
 
 int main(){
 	int logis_num = 0;
@@ -83,10 +94,7 @@ int main(){
 		cout << "\n";	
 	}
 	
-	int* logis_chosen_cnt = new int[logis_num];
-	int* logis_index = new int[logis_num]; // store the logis to be processed first...
-	logisChosenCnt(store_logis_pair, logis_index, logis_chosen_cnt, store_num, logis_num); // logis_index??
-	arrangeLogisStorePair(logis_chosen_cnt, logis_index, logis_num); // not originally the function is intended to use!
+
 	
 	// final step
 	int* final_decision = new int[store_num];
@@ -97,30 +105,53 @@ int main(){
 	int** replenish_plan = new int*[store_num];
 	
 	iniConstructArr(replenish_plan, construct_logis, construct_store, store_num, logis_num);
-	for(int i = 0; i < logis_num; i++){
-		int curr_logis_index = logis_index[i];
-		//logisStoreChoose(store_logis_pair, store_logis_net_profit, curr_logis_index, logis_info, 
-						//store_info, final_decision, store_num, logis_num);
-		logisStoreDecide(store_logis_pair, store_logis_net_profit, curr_logis_index, logis_info, store_info,
-						final_decision, replenish_plan, unit_km_cost, store_num, logis_num);
-		if(final_decision[0] != -1){ // the first final decision plan is -1
-			construct_logis_cnt += 1;
-			// set the store to be constructed! // a function
-			constructLogis(construct_logis, curr_logis_index);
-			for(int i = 0; i < store_num; i++){
-				if(final_decision[i] == -1) 
-					break;
-				else{
-					construct_store_cnt += 1;
-					constructStore(construct_store, final_decision[i]);
-					//alterReplenishPlan(replenish_plan, final_decision[i], curr_logis_index, store_info);
-				} 
-			}
-		}	
+	// We wrap another loop to reflect that we might 
+	//have to select the second and third best fit 
+	for(int row_num = 0; row_num < logis_num; row_num++){ 
+		int* logis_chosen_cnt = new int[logis_num];
+		int* logis_index = new int[logis_num]; // store the logis to be processed first...
+		//logisChosenCnt(store_logis_pair, corr_logis_index, logis_chosen_cnt, store_num, logis_num, i); // logis_index??
+		logisChosenCnt(store_logis_pair, logis_index, logis_chosen_cnt, construct_store, store_num, logis_num, row_num);
+		arrangeLogisStorePair(logis_chosen_cnt, logis_index, logis_num); // not originally the function is intended to use!
+		
+		// start to go into the loop //  change the line 
+		for(int j = 0; j < logis_num; j++){
+			int curr_logis_index = logis_index[j];
+			//logisStoreChoose(store_logis_pair, store_logis_net_profit, curr_logis_index, logis_info, 
+							//store_info, final_decision, store_num, logis_num);
+//			logisStoreDecide(store_logis_pair, store_logis_net_profit, curr_logis_index, logis_info, store_info,
+//							final_decision, replenish_plan, unit_km_cost, store_num, logis_num);
+			logisStoreDecide(store_logis_pair, store_logis_net_profit, curr_logis_index, logis_info, store_info,
+final_decision, replenish_plan, construct_logis, construct_store, unit_km_cost, store_num, logis_num, row_num);
+			if(final_decision[0] != -1){ // the first final decision is -1
+				// set the store to be constructed! // a function
+				constructLogis(construct_logis, curr_logis_index);
+				for(int k = 0; k < store_num; k++){
+					if(final_decision[k] == -1) 
+						break;
+					else{ // this place might behave wrong!
+						construct_store_cnt += 1;
+						constructStore(construct_store, final_decision[k]);
+						//alterReplenishPlan(replenish_plan, final_decision[i], curr_logis_index, store_info);
+					} 
+				}
+			}	
+		}
+		
+		delete[] logis_chosen_cnt;
+		delete[] logis_index;
 	}
+	// decide the number the logis is built!
+	for(int i = 0; i < logis_num; i++)
+		if(construct_logis[i] == true)
+			construct_logis_cnt++;
 	
 	printOutput(construct_logis_cnt, construct_logis, construct_store_cnt, construct_store, 
 	replenish_plan, logis_num, store_num);
+	
+	checkFeasibility(store_info, logis_info, construct_logis_cnt, construct_logis, 
+construct_store_cnt, construct_store, replenish_plan, logis_num, store_num, logis_mode,
+unit_km_cost);
 	
 	return 0;
 } 
@@ -200,6 +231,8 @@ void assignLogistics(Store* store_info, Logis* logis_info, int** store_logis_pai
 	
 	return;
 }
+
+// change
 int raw_profit(int man_dist, int prod_price, int unit_km_cost){
 	// calculate the term (p - c * d_ij) 
 	int profit = prod_price - unit_km_cost * man_dist;	
@@ -289,7 +322,8 @@ void alterStoreLogisPair(int** store_logis_pair, int** store_logis_net_profit, i
 	return;
 }
 
-void logisChosenCnt(int** store_logis_pair, int* logis_index, int* logis_chosen_cnt_arr, int store_num, int logis_num){
+void logisChosenCnt(int** store_logis_pair, int* logis_index, int* logis_chosen_cnt_arr,
+ bool* construct_store, int store_num, int logis_num, int row_num){
 	// intialization
 	for(int i = 0; i < logis_num; i++)
 		logis_index[i] = i;
@@ -299,9 +333,10 @@ void logisChosenCnt(int** store_logis_pair, int* logis_index, int* logis_chosen_
 	
 	// calculation
 	// I only calculate the first row
+	// changed: 2021/11/28 -> I augmented it into the second, third row...
 	for(int i = 0; i < store_num; i++){
-		int chosen_logis = store_logis_pair[i][0];
-		if(chosen_logis != -1)
+		int chosen_logis = store_logis_pair[i][row_num];
+		if(chosen_logis != -1 && construct_store[i] == false) // the store hasn't been constructed
 			logis_chosen_cnt_arr[chosen_logis] += 1;
 	}
 }
@@ -325,12 +360,13 @@ void iniConstructArr(int** replenish_plan, bool* construct_logis, bool* construc
 }
 
 // This place is currently changed! // 11/24/2021
-void logisStoreDecide(int** store_logis_pair, int** store_logis_net_profit, int logis_index, Logis* logis_info, Store* store_info,
-int* final_decision, int** replenish_plan, int unit_km_cost, int store_num, int logis_num){
+// changing 2021/11/28
+void logisStoreDecide(int** store_logis_pair, int** store_logis_net_profit, int logis_index, Logis* logis_info, 
+Store* store_info, int* final_decision, int** replenish_plan, bool* construct_logis, bool* construct_store, int unit_km_cost, int store_num, 
+int logis_num, int row_num){
 	
 	// intialize to be -1
 	// when entering the loop once, the array(final_decision、tmp_decision) will be initialized
-	
 	int* tmp_deci_store = new int[store_num]; // probably one logistics center will be paired with all of the store
 	int* tmp_deci_good = new int[store_num];
 	for(int i = 0; i < store_num; i++){
@@ -345,15 +381,16 @@ int* final_decision, int** replenish_plan, int unit_km_cost, int store_num, int 
 	int curr_profit = 0;
 	// loop thorugh the store_logis_pair array, only loop through the first column
 	for(int i = 0; i < store_num; i++){
-		if(store_logis_pair[i][0] == logis_index){
-			if(capacity - store_info[i].demand >= 0){
+		if(store_logis_pair[i][row_num] == logis_index && construct_store[i] == false){
+			if(capacity - store_info[i].demand >= 0){ // this step not complete
 				capacity -= store_info[i].demand;
-				curr_profit += store_logis_net_profit[i][0];
+				curr_profit += store_logis_net_profit[i][row_num];
 				tmp_decision_cnt += 1;
 				tmp_deci_store[tmp_decision_cnt] = i;
 				tmp_deci_good[tmp_decision_cnt] = store_info[i].demand;
 			}
 			else{
+				// change this line...
 				bool positive = check_positive(capacity, i, logis_index, store_info, logis_info, unit_km_cost);
 				cout << "The positiveness?? " << positive;
 				if(positive == true){
@@ -371,12 +408,21 @@ int* final_decision, int** replenish_plan, int unit_km_cost, int store_num, int 
 		
 	// copy the tmp_decision_into final decision
 	// also fill in the replensih plan
-	if(curr_profit > logis_info[logis_index].construct_cost){
+	if(curr_profit > logis_info[logis_index].construct_cost && construct_logis[logis_index] == false){ // changed
 		for(int i = 0; i < tmp_decision_cnt + 1; i++){
 			final_decision[i] = tmp_deci_store[i];
 			replenish_plan[final_decision[i]][logis_index] = tmp_deci_good[i];	
 		}	
 	}
+	else{
+		if(curr_profit > 0 && construct_logis[logis_index] == true){
+			for(int i = 0; i < tmp_decision_cnt + 1; i++){
+				final_decision[i] = tmp_deci_store[i];
+				replenish_plan[final_decision[i]][logis_index] = tmp_deci_good[i];	
+			}
+		}
+	}
+
 		
 	delete[] tmp_deci_store;
 	delete[] tmp_deci_good;
@@ -411,7 +457,8 @@ void constructStore(bool* construct_store, int index){
 void printOutput(int construct_logis_cnt, bool* construct_logis, int construct_store_cnt, bool* construct_store, 
 int** replenish_plan, int logis_num, int store_num){
 	
-	cout << "...." <<construct_logis_cnt << " ";
+	cout << " .........." << endl;
+	cout <<construct_logis_cnt  << " ";
 	// output - needs to be checked!
 	for(int i = 0; i < logis_num; i++){
 		int cnt = 0;
@@ -452,5 +499,86 @@ int** replenish_plan, int logis_num, int store_num){
 		cout << "\n";	
 	} 
 
+}
+
+void checkFeasibility(Store* store_info, Logis* logis_info, int construct_logis_cnt, bool construct_logis[], 
+int construct_store_cnt, bool construct_store[], int** replenish_plan, int logis_num, int store_num, int logis_mode,
+int unit_km_cost){
+	// check number of stores
+	int constructed_store_num = 0;
+	int constructed_logis_num = 0;	
+	// check if the profit is negative
+		// loop through the replenish_plan
+	int total_profit = 0;
+	bool num_store_logis = true;
+	// compute logistics and store construct cost
+	for(int i = 0; i < logis_num; i++)
+		if(construct_logis[i] == true){
+			total_profit -= logis_info[i].construct_cost;
+			constructed_logis_num += 1;	
+		}
+			
+	
+	for(int i = 0; i < store_num; i++)
+		if(construct_store[i] == true){
+			total_profit -= store_info[i].construct_cost;
+			constructed_store_num += 1;	
+		}
+				
+	if(constructed_store_num != construct_store_cnt || constructed_logis_num != construct_logis_cnt){
+		num_store_logis = false;
+		cout << "The number of constructed store or constructed logis are wrong" << endl;	
+	}
+			
+				
+	for(int i = 0; i < logis_num; i++) // logis_num in a row!
+		for(int j = 0; j < store_num; j++)
+			if(replenish_plan[j][i] != 0){
+				int price_goods = store_info[j].prod_price;
+				int logis_cost = store_info[j].man_dist(logis_info[i]) * unit_km_cost; // c* d_ij
+				total_profit += (price_goods - logis_cost) * replenish_plan[j][i];
+			}
+				
+	if(total_profit > 0){
+	 	//cout << "total profit > 0. This test passed."
+	 	cout << "the profit will be " << total_profit << endl; 
+	} 
+	else
+		cout << "total profit < 0. This test failed." << endl;		
+	
+	// check single center/ multiple center
+	
+	bool center_verify = true;
+	for(int i = 0; i < store_num; i++){
+		int bigger_than_zero_cnt = 0;
+		for(int j = 0; j < logis_num; j++)
+			if(replenish_plan[i][j] >= 0)
+				bigger_than_zero_cnt += 1;
+				
+		// check the condition after every horizontal line
+		if(bigger_than_zero_cnt >= 1 && logis_mode == 1)
+			center_verify == false;
+	}
+	
+	if(center_verify == false)
+		cout << "The center verification is " << center_verify << endl;
+		
+	// check one logistics center gives more goods than the maximum capacity
+	bool capacity_verify = true;
+	for(int i = 0; i < logis_num; i++){
+		int total_goods = 0;
+		for(int j = 0; j < store_num; j++)
+			total_goods += replenish_plan[j][i];
+		if(total_goods > logis_info[i].capacity)
+			capacity_verify = false;	
+	}
+	
+	// all test passed
+	if(total_profit > 0 && center_verify == true && capacity_verify == true && num_store_logis == true)
+		cout << "All tests passed!" << endl;
+	else
+		cout << "At least one of the tests not passed!" << endl;
+
+	return;	
 }
 
